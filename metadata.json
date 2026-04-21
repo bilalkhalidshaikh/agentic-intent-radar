@@ -1,0 +1,5 @@
+{
+  "name": "Achroweb Lead Sniper",
+  "description": "High-end, data-dense, ultra-premium SaaS dashboard for an AI Voice Agency.",
+  "requestFramePermissions": ["camera", "microphone", "geolocation"]
+}
