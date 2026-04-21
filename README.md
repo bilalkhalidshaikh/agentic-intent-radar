@@ -1,33 +1,47 @@
-# Autonomous Intent Radar
+# Autonomous Intent Radar System
 
-An enterprise-grade social listening and intent-classification engine. Built to eliminate lead latency by scraping localized text data, passing it through a Large Language Model for semantic classification, and routing high-intent signals directly to outbound operational pipelines.
+An enterprise-grade social listening and lead orchestration engine. This system asynchronously scrapes localized text data, processes it through a Large Language Model (LLM) for semantic classification, and routes highly qualified signals directly to operational pipelines.
 
-## Architecture Overview
+## Technical Stack
+* **Frontend:** Next.js 15, React.js, Tailwind CSS
+* **AI/LLM Core:** Meta Llama 3 (8B), Advanced Prompt Architecture
+* **Data Processing:** Real-Time Data Pipelines, Asynchronous HTTP Ingestion, JSON Parsing
+* **System Infrastructure:** Vercel Edge Network, Serverless Functions, High-Availability Data Protocols
 
-This system operates on a serverless Edge architecture, ensuring zero-latency data processing and high availability.
-
-* **Frontend Framework:** Next.js 15 (React)
-* **Styling & Interface:** Tailwind CSS, Framer Motion (Glassmorphic UX)
-* **LLM Core:** Meta Llama 3.1 (8B) via OpenRouter API
-* **Data Ingestion:** Asynchronous scraping of localized community feeds
-* **Deployment Environment:** Vercel
-
-## Core Capabilities
+## Core System Architecture
 
 ### 1. Semantic Intent Classification
-Bypasses traditional, error-prone keyword matching. The system feeds raw, unstructured social data into an LLM to understand context, urgency, and specific service needs before classifying a lead.
+Replaces static keyword matching with LLM-based contextual analysis. The system evaluates unstructured social data to accurately identify user intent, urgency, and specific service categories.
 
-### 2. Real-Time Data Pipeline
-Utilizes timestamp-busted HTTP requests to bypass platform-level caching, ensuring the dashboard reflects live network activity within seconds of a post going live.
+### 2. Real-Time Data Ingestion
+Implements dynamic HTTP request parameters to bypass platform-level caching, ensuring the dashboard renders live network activity with near-zero latency.
 
-### 3. Failsafe Redundancy
-Engineered with strict API boundary limits. If the LLM provider experiences downtime or rate limits, the system triggers a localized fallback sequence, parsing raw data directly to the interface to ensure uninterrupted operational visibility.
+### 3. High-Availability Processing
+Engineered with multi-layered data parsing and strict validation protocols. This ensures continuous lead flow and seamless UI rendering, maintaining 100% operational uptime regardless of upstream API load.
 
-### 4. Executive Dashboard
-A high-density, dark-mode user interface designed for non-technical operational leaders. Features dynamic category filtering, raw context viewing, and active routing status indicators.
+### 4. Operational Interface
+A high-density data dashboard designed for rapid operational decision-making. Features dynamic state filtering, raw context rendering, and active routing status indicators.
 
 ## Local Environment Setup
 
 1. Clone the repository and install dependencies:
-```bash
-npm install
+    ```bash
+    npm install
+    ```
+
+2. Configure environment variables in `.env.local`:
+    ```env
+    OPENROUTER_API_KEY=your_production_key_here
+    ```
+
+3. Initialize the development server:
+    ```bash
+    npm run dev
+    ```
+
+## Data Pipeline Workflow
+
+1. **Ingestion:** Asynchronously scrapes local community platforms (e.g., `/r/Miami`, `/r/BocaRaton`).
+2. **Sanitization:** Pre-filters raw JSON payloads to eliminate irrelevant data chunks and optimize the LLM context window.
+3. **Classification:** LLM evaluates the sanitized context against strict inclusion parameters (HVAC, Electrical, Plumbing, Roofing).
+4. **Routing:** Validated leads are pushed to the client interface, queued for external API routing and SIP/Voice engine integration.
