@@ -159,19 +159,45 @@ function useLiveRadar(
     }
   }, [setLeads, setLogs, setMetrics, seenLeadIds]);
 
-  useEffect(() => {
-    poll();
-    const id = window.setInterval(poll, 20_000);
-    return () => window.clearInterval(id);
-  }, [poll]);
+//   useEffect(() => {
+//     poll();
+//     const id = window.setInterval(poll, 20_000);
+//     return () => window.clearInterval(id);
+//   }, [poll]);
+// }
+
+// export function RadarProvider({ children }: { children: React.ReactNode }) {
+//   const [leads, setLeads] = useState<Lead[]>([]);
+//   const [logs, setLogs] = useState<string[]>([
+//     '[SYSTEM] Engine Initialized. Securing connection to Swarm...',
+//     '[NET] Live radar channel open — polling /api/radar every 20s.',
+//   ]);
+useEffect(() => {
+  let isSubscribed = true;
+  
+  const runPoll = async () => {
+    if (isSubscribed) {
+      await poll();
+      // Wait 12 seconds BEFORE starting the next fetch to prevent network stacking
+      setTimeout(runPoll, 12_000); 
+    }
+  };
+
+  runPoll();
+  
+  return () => {
+    isSubscribed = false;
+  };
+}, [poll]);
 }
 
 export function RadarProvider({ children }: { children: React.ReactNode }) {
-  const [leads, setLeads] = useState<Lead[]>([]);
-  const [logs, setLogs] = useState<string[]>([
-    '[SYSTEM] Engine Initialized. Securing connection to Swarm...',
-    '[NET] Live radar channel open — polling /api/radar every 20s.',
-  ]);
+const [leads, setLeads] = useState<Lead[]>([]);
+const [logs, setLogs] = useState<string[]>([
+  '[SYSTEM] Engine Initialized. Securing connection to Swarm...',
+  '[NET] Live radar channel open — sweeping South Florida grid.',
+]);
+
   const [metrics, setMetrics] = useState<Metrics>({
     intercepted: 0,
     strikes: 0,
