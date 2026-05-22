@@ -21,9 +21,12 @@ export async function GET() {
     const headers = { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Achroweb/2.0' };
     
     // 🔥 THE FIX: ONE single request. Combining cities into one URL so Reddit doesn't IP ban the server for spamming.
-    const query = "HVAC OR plumber OR electrician OR roofing OR leak OR breaker";
-    const url = `https://www.reddit.com/r/Miami+BocaRaton+FortLauderdale+Orlando+Florida/search.json?q=${encodeURIComponent(query)}&restrict_sr=on&sort=new&limit=25`;
+    // const query = "HVAC OR plumber OR electrician OR roofing OR leak OR breaker";
+    // const url = `https://www.reddit.com/r/Miami+BocaRaton+FortLauderdale+Orlando+Florida/search.json?q=${encodeURIComponent(query)}&restrict_sr=on&sort=new&limit=25`;
     
+    // 🔥 THE FIX: Tapped the LIVE FIREHOSE to bypass Reddit's 20-minute search lag.
+    const url = `https://www.reddit.com/r/Miami+BocaRaton+FortLauderdale+Orlando+Florida/new.json?limit=25`;
+
     const response = await fetch(url, { headers });
     
     if (!response.ok) {
