@@ -91,121 +91,199 @@ function normalizeApiLead(raw: Record<string, unknown>): Lead {
   };
 }
 
-function useLiveRadar(
-  setLeads: React.Dispatch<React.SetStateAction<Lead[]>>,
-  setLogs: React.Dispatch<React.SetStateAction<string[]>>,
-  setMetrics: React.Dispatch<React.SetStateAction<Metrics>>,
-  seenLeadIds: React.MutableRefObject<Set<string>>,
-) {
-  const poll = useCallback(async () => {
-    try {
-      const res = await fetch('/api/radar', { cache: 'no-store' });
-      const data = (await res.json()) as {
-        leads?: Record<string, unknown>[];
-        meta?: { ok?: boolean; message?: string };
-      };
+// function useLiveRadar(
+//   setLeads: React.Dispatch<React.SetStateAction<Lead[]>>,
+//   setLogs: React.Dispatch<React.SetStateAction<string[]>>,
+//   setMetrics: React.Dispatch<React.SetStateAction<Metrics>>
+// ) {
+//   const poll = useCallback(async (abortSignal: { aborted: boolean }) => {
+//     try {
+//       const res = await fetch('/api/radar', { cache: 'no-store' });
+//       const data = await res.json();
+      
+//       if (abortSignal.aborted) return; 
 
-      const incoming = Array.isArray(data.leads) ? data.leads : [];
-      if (incoming.length === 0 && data.meta?.message) {
-        setLogs((prev) =>
-          [...prev, `[NET] /api/radar — ${data.meta?.message}`].slice(-10),
-        );
-        return;
-      }
+//       const incoming = Array.isArray(data.leads) ? data.leads : [];
+//       if (incoming.length === 0) return;
 
-      const additions: Lead[] = [];
-      for (const item of incoming) {
-        if (!item || typeof item !== 'object') continue;
-        const lead = normalizeApiLead(item as Record<string, unknown>);
-        const dedupeKey =
-          lead.sourceId ||
-          `${lead.name}:${lead.context.slice(0, 120)}:${lead.id}`;
-        if (seenLeadIds.current.has(dedupeKey)) continue;
-        seenLeadIds.current.add(dedupeKey);
-        additions.push(lead);
-      }
+//       setLeads((prev) => {
+//         const newLeads = [...prev];
+//         const actualAdditions: Lead[] = [];
 
-      if (additions.length === 0) return;
+//         for (const item of incoming) {
+//           if (!item || typeof item !== 'object') continue;
+//           const lead = normalizeApiLead(item as Record<string, unknown>);
+//           const dedupeKey = lead.sourceId || `${lead.name}:${lead.context.slice(0, 120)}`;
+          
+//           const isDuplicate = newLeads.some(l => (l.sourceId || `${l.name}:${l.context.slice(0, 120)}`) === dedupeKey);
+          
+//           if (!isDuplicate) {
+//             actualAdditions.push(lead);
+//             newLeads.unshift(lead); 
+//           }
+//         }
 
-      setLeads((prev) => [...additions, ...prev].slice(0, 5));
+//         if (actualAdditions.length > 0) {
+//           setTimeout(() => {
+//             setMetrics((m) => {
+//               let pipeline = m.pipeline;
+//               for (let i = 0; i < actualAdditions.length; i++) {
+//                 pipeline += pipelineIncrement();
+//               }
+//               return {
+//                 intercepted: m.intercepted + actualAdditions.length,
+//                 strikes: m.strikes + actualAdditions.length,
+//                 pipeline,
+//               };
+//             });
 
-      setMetrics((m) => {
-        let pipeline = m.pipeline;
-        for (let i = 0; i < additions.length; i++) {
-          pipeline += pipelineIncrement();
-        }
-        return {
-          intercepted: m.intercepted + additions.length,
-          strikes: m.strikes + additions.length,
-          pipeline,
-        };
-      });
+//             const terminalBurst: string[] = [];
+//             for (const _lead of actualAdditions) {
+//               terminalBurst.push(
+//                 '[RADAR] High-Intent Match detected.',
+//                 '[WEBHOOK] Auto-DM payload deployed to prospect.',
+//                 '[VAPI] Awaiting prospect phone number response for voice routing...'
+//               );
+//             }
+//             setLogs((prevLogs) => [...prevLogs, ...terminalBurst].slice(-10));
+//           }, 0);
+//         }
 
-      const terminalBurst: string[] = [];
-      for (const _lead of additions) {
-        terminalBurst.push(
-          '[RADAR] High-Intent Match detected in Boca/Miami sector.',
-          '[WEBHOOK] Auto-DM payload deployed to prospect.',
-          '[VAPI] Awaiting prospect phone number response for Achrocall voice routing...',
-        );
-      }
-      setLogs((prev) => [...prev, ...terminalBurst].slice(-10));
-    } catch {
-      setLogs((prev) =>
-        [...prev, '[NET] /api/radar poll failed — retaining last known state'].slice(
-          -10,
-        ),
-      );
-    }
-  }, [setLeads, setLogs, setMetrics, seenLeadIds]);
+//         return newLeads.slice(0, 5); 
+//       });
+//     } catch (error) {
+//       console.error(error);
+//     }
+//   }, [setLeads, setLogs, setMetrics]);
 
 //   useEffect(() => {
-//     poll();
-//     const id = window.setInterval(poll, 20_000);
-//     return () => window.clearInterval(id);
+//     const abortSignal = { aborted: false };
+//     let timeoutId: ReturnType<typeof setTimeout>;
+
+//     const runPoll = async () => {
+//       if (!abortSignal.aborted) {
+//         await poll(abortSignal);
+//         if (!abortSignal.aborted) {
+//           timeoutId = setTimeout(runPoll, 12_000); 
+//         }
+//       }
+//     };
+
+//     runPoll();
+
+//     return () => {
+//       abortSignal.aborted = true;
+//       clearTimeout(timeoutId);
+//     };
 //   }, [poll]);
 // }
 
-// export function RadarProvider({ children }: { children: React.ReactNode }) {
-//   const [leads, setLeads] = useState<Lead[]>([]);
-//   const [logs, setLogs] = useState<string[]>([
-//     '[SYSTEM] Engine Initialized. Securing connection to Swarm...',
-//     '[NET] Live radar channel open — polling /api/radar every 20s.',
-//   ]);
-useEffect(() => {
-  let isSubscribed = true;
-  
-  const runPoll = async () => {
-    if (isSubscribed) {
-      await poll();
-      // Wait 12 seconds BEFORE starting the next fetch to prevent network stacking
-      setTimeout(runPoll, 12_000); 
-    }
-  };
 
-  runPoll();
-  
-  return () => {
-    isSubscribed = false;
-  };
-}, [poll]);
+function useLiveRadar(
+  setLeads: React.Dispatch<React.SetStateAction<Lead[]>>,
+  setLogs: React.Dispatch<React.SetStateAction<string[]>>,
+  setMetrics: React.Dispatch<React.SetStateAction<Metrics>>
+) {
+  // 🔥 THE FIX: Silent Memory Cache. It remembers every lead ID permanently.
+  const memoryCache = useRef<Set<string>>(new Set());
+
+  const poll = useCallback(async (abortSignal: { aborted: boolean }) => {
+    try {
+      const res = await fetch('/api/radar', { cache: 'no-store' });
+      const data = await res.json();
+      
+      if (abortSignal.aborted) return; 
+
+      const incoming = Array.isArray(data.leads) ? data.leads : [];
+      if (incoming.length === 0) return;
+
+      setLeads((prev) => {
+        const newLeads = [...prev];
+        const actualAdditions: Lead[] = [];
+
+        for (const item of incoming) {
+          if (!item || typeof item !== 'object') continue;
+          const lead = normalizeApiLead(item as Record<string, unknown>);
+          const dedupeKey = lead.sourceId || `${lead.name}:${lead.context.slice(0, 120)}`;
+          
+          // Check against the permanent memory, not the sliced UI state
+          if (!memoryCache.current.has(dedupeKey)) {
+            memoryCache.current.add(dedupeKey);
+            actualAdditions.push(lead);
+            newLeads.unshift(lead); 
+          }
+        }
+
+        if (actualAdditions.length > 0) {
+          setTimeout(() => {
+            setMetrics((m) => {
+              let pipeline = m.pipeline;
+              for (let i = 0; i < actualAdditions.length; i++) {
+                pipeline += pipelineIncrement();
+              }
+              return {
+                intercepted: m.intercepted + actualAdditions.length,
+                strikes: m.strikes + actualAdditions.length,
+                pipeline,
+              };
+            });
+
+            const terminalBurst: string[] = [];
+            for (const _lead of actualAdditions) {
+              terminalBurst.push(
+                '[RADAR] High-Intent Match detected.',
+                '[WEBHOOK] Auto-DM payload deployed to prospect.',
+                '[VAPI] Awaiting prospect phone number response for voice routing...'
+              );
+            }
+            setLogs((prevLogs) => [...prevLogs, ...terminalBurst].slice(-15));
+          }, 0);
+        }
+
+        // Increased to 50 so the table actually has data to scroll through
+        return newLeads.slice(0, 50); 
+      });
+    } catch (error) {
+      console.error(error);
+    }
+  }, [setLeads, setLogs, setMetrics]);
+
+  useEffect(() => {
+    const abortSignal = { aborted: false };
+    let timeoutId: ReturnType<typeof setTimeout>;
+
+    const runPoll = async () => {
+      if (!abortSignal.aborted) {
+        await poll(abortSignal);
+        if (!abortSignal.aborted) {
+          timeoutId = setTimeout(runPoll, 12_000); 
+        }
+      }
+    };
+
+    runPoll();
+
+    return () => {
+      abortSignal.aborted = true;
+      clearTimeout(timeoutId);
+    };
+  }, [poll]);
 }
 
 export function RadarProvider({ children }: { children: React.ReactNode }) {
-const [leads, setLeads] = useState<Lead[]>([]);
-const [logs, setLogs] = useState<string[]>([
-  '[SYSTEM] Engine Initialized. Securing connection to Swarm...',
-  '[NET] Live radar channel open — sweeping South Florida grid.',
-]);
+  const [leads, setLeads] = useState<Lead[]>([]);
+  const [logs, setLogs] = useState<string[]>([
+    '[SYSTEM] Engine Initialized. Securing connection to Swarm...',
+    '[NET] Live radar channel open — sweeping data grid.',
+  ]);
 
   const [metrics, setMetrics] = useState<Metrics>({
     intercepted: 0,
     strikes: 0,
     pipeline: 0,
   });
-  const seenLeadIds = useRef<Set<string>>(new Set());
 
-  useLiveRadar(setLeads, setLogs, setMetrics, seenLeadIds);
+  useLiveRadar(setLeads, setLogs, setMetrics);
 
   const value = useMemo(
     () => ({ leads, logs, metrics }),
@@ -341,9 +419,7 @@ export const IntentFeed = () => {
       case 'Twitter':
         return <Twitter className="w-4 h-4 text-sky-400" />;
       case 'Reddit':
-        return 
-        // <MessageSquare className="w-4 h-4 text-orange-500" />;
-        <FaReddit className="w-4 h-4 text-[#FF4500]" />
+        return <FaReddit className="w-4 h-4 text-[#FF4500]" />
       default:
         return <Activity className="w-4 h-4 text-zinc-500" />;
     }
@@ -360,18 +436,12 @@ export const IntentFeed = () => {
       );
     }
     const colors: Record<string, string> = {
-      'TARGET ACQUIRED':
-        'bg-brand-blue/10 text-brand-blue border-brand-blue/20 animate-pulse',
-      'Target Acquired':
-        'bg-brand-blue/10 text-brand-blue border-brand-blue/20 animate-pulse',
-      'PAYLOAD EXECUTED':
-        'bg-brand-orange/10 text-brand-orange border-brand-orange/20',
-      'Payload Executed':
-        'bg-brand-orange/10 text-brand-orange border-brand-orange/20',
-      'AGENT DEPLOYED':
-        'bg-green-500/10 text-green-500 border-green-500/20',
-      'Agent Deployed':
-        'bg-green-500/10 text-green-500 border-green-500/20',
+      'TARGET ACQUIRED': 'bg-brand-blue/10 text-brand-blue border-brand-blue/20 animate-pulse',
+      'Target Acquired': 'bg-brand-blue/10 text-brand-blue border-brand-blue/20 animate-pulse',
+      'PAYLOAD EXECUTED': 'bg-brand-orange/10 text-brand-orange border-brand-orange/20',
+      'Payload Executed': 'bg-brand-orange/10 text-brand-orange border-brand-orange/20',
+      'AGENT DEPLOYED': 'bg-green-500/10 text-green-500 border-green-500/20',
+      'Agent Deployed': 'bg-green-500/10 text-green-500 border-green-500/20',
       'AWAITING ROUTING': 'bg-zinc-800/50 text-zinc-400 border-zinc-700',
       'Awaiting Routing': 'bg-zinc-800/50 text-zinc-400 border-zinc-700',
     };
@@ -448,7 +518,6 @@ export const IntentFeed = () => {
               <div className="flex items-center justify-between rounded-lg border border-zinc-800/70 bg-zinc-950/60 px-3 py-2 transition-all duration-300 hover:border-zinc-700 hover:bg-zinc-900/60">
                 <div className="flex items-center gap-2 text-zinc-200">
                   <FaReddit className="w-4 h-4 text-[#FF4500]" />
-                   {/* <MessageSquare className="w-4 h-4 text-orange-500" /> */}
                   <span className="text-[10px] font-black uppercase tracking-[0.2em]">Reddit</span>
                 </div>
                 <span className="text-[10px] font-black uppercase tracking-[0.2em] text-green-400">Active (Running on Dev API)</span>
@@ -502,10 +571,16 @@ export const IntentFeed = () => {
         </div>
       </div>
 
-      <div className="overflow-x-auto">
+      {/* <div className="overflow-x-auto">
         <table className="w-full text-left border-collapse">
           <thead>
-            <tr className="bg-zinc-950/60 border-b border-zinc-800/70">
+            <tr className="bg-zinc-950/60 border-b border-zinc-800/70"> */}
+
+            {/* THE FIX: Added vertical scroll, max-height, and a sticky header */}
+      <div className="overflow-x-auto overflow-y-auto max-h-[500px] custom-scrollbar relative">
+        <table className="w-full text-left border-collapse">
+          <thead className="sticky top-0 z-20 bg-zinc-950/95 backdrop-blur-xl shadow-md shadow-black/50">
+            <tr className="border-b border-zinc-800/70">
               <th className="px-6 py-4 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">
                 Platform
               </th>
@@ -622,7 +697,7 @@ export const IntentFeed = () => {
               No live leads found for this category yet.
             </p>
             <p className="mt-2 text-xs text-zinc-600">
-              The engine is running. As soon as a matching Miami or Boca Raton request appears, it will be routed here instantly.
+              The engine is running. As soon as a matching request appears, it will be routed here instantly.
             </p>
           </div>
         )}
