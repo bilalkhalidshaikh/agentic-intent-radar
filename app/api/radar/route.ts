@@ -14,13 +14,15 @@ export async function GET() {
     console.log("[SYS] Bypassing Reddit Security & Fetching Data...");
     
     // Kept the Achroweb branding for the trap
-    const headers = { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Achroweb/2.0' };
+    // const headers = { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Achroweb/2.0' };
+    // Bypass Vercel firewall by using official Reddit API format
+const headers = { 'User-Agent': 'web:achroweb-sniper:v2.0 (by /u/Icy-Grocery-7738)' };
     
     // GLOBAL TEST FEED: Active right now so your dashboard lights up immediately.
     // const url = `https://www.reddit.com/r/HomeImprovement+Plumbing+HVAC/new.json?limit=100`;
     
     // FLORIDA TARGET: Switch to this BEFORE you push to Vercel for Andy.
-    const url = `https://www.reddit.com/r/Miami+BocaRaton+FortLauderdale+Orlando+Florida/new.json?limit=100`;
+    const url = `https://www.reddit.com/r/Miami+BocaRaton+FortLauderdale+Orlando+Florida+HomeImprovement/new.json?limit=100`;
 
     const response = await fetch(url, { headers, cache: 'no-store' });
     
