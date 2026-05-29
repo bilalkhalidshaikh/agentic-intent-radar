@@ -24,6 +24,7 @@ import {
   Activity,
   Zap,
   Radar,
+  X
 } from 'lucide-react';
 import { FaReddit } from 'react-icons/fa';
 import { cn } from '@/lib/utils';
@@ -393,7 +394,7 @@ export const MetricsRow = () => {
 export const IntentFeed = () => {
   const { leads } = useRadarStore();
   const [activeCategory, setActiveCategory] = useState('All');
-
+  const [selectedLead, setSelectedLead] = useState<Lead | null>(null);  
   const categoryTabs = [
     'All',
     'HVAC / AC',
@@ -640,10 +641,18 @@ export const IntentFeed = () => {
                       </p>
                     </div>
                   </td>
-                  <td className="px-6 py-4 min-w-[380px]">
+                  {/* <td className="px-6 py-4 min-w-[380px]">
                     <p className="whitespace-pre-wrap text-sm text-zinc-300 leading-relaxed italic">
                       &quot;{lead.context}&quot;
                     </p>
+                  </td> */}
+                  <td className="px-6 py-4 min-w-[380px] max-w-md">
+                    {/* 🔥 THE FIX: Added line-clamp-2 to force the table to stay strictly 2 lines high */}
+                    <div className="line-clamp-2">
+                      <p className="whitespace-pre-wrap text-sm text-zinc-300 leading-relaxed italic">
+                        &quot;{lead.context}&quot;
+                      </p>
+                    </div>
                   </td>
                   <td className="px-6 py-4 hidden sm:table-cell">
                     <div className="flex items-center gap-3">
@@ -675,6 +684,7 @@ export const IntentFeed = () => {
                   <td className="px-6 py-4 text-right">
                     <button
                       type="button"
+                      onClick={() => setSelectedLead(lead)}
                       className="p-2 rounded-lg hover:bg-zinc-800 text-zinc-500 hover:text-brand-blue transition-all duration-300"
                     >
                       <motion.span
@@ -702,6 +712,99 @@ export const IntentFeed = () => {
           </div>
         )}
       </div>
+      {/* 🔥 PREMIUM LEAD MODAL INJECTION */}
+      <AnimatePresence>
+        {selectedLead && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setSelectedLead(null)}
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="relative w-full max-w-2xl bg-zinc-950 border border-zinc-800 rounded-2xl shadow-2xl shadow-brand-blue/10 overflow-hidden z-10 flex flex-col"
+            >
+              {/* Modal Header */}
+              <div className="p-6 border-b border-zinc-800/70 bg-zinc-900/30 flex justify-between items-start">
+                <div className="flex items-center gap-4">
+                  <div className="p-3 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center justify-center">
+                    {getSourceIcon(selectedLead.source)}
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-black text-white">{selectedLead.name}</h3>
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">
+                        {selectedLead.source} · {selectedLead.time}
+                      </span>
+                      {selectedLead.category && (
+                        <>
+                          <span className="text-zinc-700">•</span>
+                          <span className="text-[10px] font-black uppercase tracking-[0.2em] text-brand-blue">
+                            {selectedLead.category}
+                          </span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setSelectedLead(null)}
+                  className="p-2 text-zinc-500 hover:text-white hover:bg-zinc-800 rounded-lg transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+
+   {/* Modal Body */}
+           <div className="p-6 bg-zinc-950/50">
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500 mb-3">
+                  Extracted Customer Request
+                </p>
+                {/* 🔥 THE FIX: Added max-h-60 and overflow-y-auto so long posts scroll inside the modal, instead of getting chopped */}
+                <div className="p-4 rounded-xl border border-zinc-800/50 bg-zinc-900/20 max-h-60 overflow-y-auto custom-scrollbar">
+                  <p className="text-base text-zinc-300 leading-relaxed whitespace-pre-wrap">
+                    {selectedLead.context}
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4 mt-6">
+                  <div className="p-4 rounded-xl border border-zinc-800/50 bg-zinc-900/20">
+                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500 mb-1">Intent Score</p>
+                    <div className="flex items-center gap-2">
+                      <span className="text-2xl font-black text-brand-orange">{selectedLead.score}</span>
+                      <span className="text-xs font-bold text-brand-orange">/ 100</span>
+                    </div>
+                  </div>
+                  <div className="p-4 rounded-xl border border-zinc-800/50 bg-zinc-900/20">
+                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500 mb-1">System Status</p>
+                    <div className="mt-1">{getStatusBadge(selectedLead.status)}</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Modal Footer CTA */}
+              <div className="p-6 border-t border-zinc-800/70 bg-zinc-900/30 flex gap-3 justify-end">
+                <button
+                  onClick={() => setSelectedLead(null)}
+                  className="px-6 py-2.5 rounded-lg text-xs font-black uppercase tracking-widest text-zinc-400 hover:text-white transition-colors"
+                >
+                  Close
+                </button>
+                <button className="flex items-center gap-2 px-6 py-2.5 rounded-lg text-xs font-black uppercase tracking-widest bg-brand-blue/10 text-brand-blue border border-brand-blue/30 hover:bg-brand-blue hover:text-zinc-950 transition-all duration-300 neon-blue-glow shadow-[0_0_20px_rgba(0,229,255,0.2)]">
+                  <Target className="w-4 h-4" />
+                  Force Route to Achrocall
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
