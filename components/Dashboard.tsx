@@ -258,7 +258,7 @@ function useLiveRadar(
         await poll(abortSignal);
         if (!abortSignal.aborted) {
           // timeoutId = setTimeout(runPoll, 12_000); 
-          timeoutId = setTimeout(runPoll, 3_000); 
+          timeoutId = setTimeout(runPoll, 8_000); 
         }
       }
     };

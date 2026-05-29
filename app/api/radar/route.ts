@@ -17,47 +17,54 @@ function formatTimeAgo(dateString: string) {
 
 export async function GET() {
   try {
-    console.log("\n--------------------------------------------------");
-    console.log("[SYS] INITIALIZING HYPER-STRIKE RSS PROTOCOL...");
-
     const targetUrl = `https://www.reddit.com/r/Miami+BocaRaton+FortLauderdale+Orlando+Florida+HomeImprovement/new.rss?limit=25&t=${Date.now()}`;
+
+    // The 4-Chamber Proxy Array. If one gets 429'd, it instantly fires the next.
+    const proxies = [
+      targetUrl, // Node 1: Direct Reddit
+      `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`, // Node 2: AllOrigins
+      `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(targetUrl)}`, // Node 3: CodeTabs
+      `https://corsproxy.io/?${encodeURIComponent(targetUrl)}` // Node 4: CorsProxy
+    ];
+
     let xml = "";
+    let success = false;
 
-    console.log("[SYS] Attempting Direct Fetch (Zero Cache)...");
-    let response = await fetch(targetUrl, {
-        headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
-        },
-        cache: 'no-store'
-    });
+    console.log("\n[SYS] Engaging 4-Chamber Proxy Rotator...");
 
-    if (response.ok) {
-        xml = await response.text();
-        console.log(`[SYS] Direct Fetch Successful. Payload length: ${xml.length}`);
-    } else {
-        console.log(`[SYS] Direct Fetch Blocked (${response.status}). Engaging Proxy Fallback...`);
-        // Fallback to AllOrigins Raw (Bypasses Vercel Datacenter IPs)
-        const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`;
-        response = await fetch(proxyUrl, { cache: 'no-store' });
-        if (response.ok) {
-            xml = await response.text();
-            console.log(`[SYS] Proxy Fetch Successful. Payload length: ${xml.length}`);
-        } else {
-            console.error("[CRITICAL] All pipelines blocked by Reddit.");
-            return NextResponse.json({ leads: [] });
+    for (let i = 0; i < proxies.length; i++) {
+        console.log(`[SYS] Firing Proxy Node ${i + 1}...`);
+        try {
+            const response = await fetch(proxies[i], {
+                headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
+                cache: 'no-store'
+            });
+            
+            if (response.ok) {
+                const tempXml = await response.text();
+                // Ensure the proxy didn't hand us a Cloudflare HTML error page
+                if (tempXml.includes('<entry>') || tempXml.includes('<item>')) {
+                    xml = tempXml;
+                    console.log(`[SYS] Node ${i + 1} Successful. Payload secured.`);
+                    success = true;
+                    break; // Exit the loop, we have the data
+                }
+            }
+        } catch (e) {
+            console.log(`[SYS] Node ${i + 1} failed. Cycling to next node...`);
         }
     }
 
-    // Universal Regex to catch BOTH Atom (<entry>) and RSS 2.0 (<item>) formats
+    // If all 4 nodes fail, return silently to prevent a crash.
+    if (!success) {
+        console.error("[CRITICAL] All proxy pipelines temporarily blocked. Waiting for cooldown.");
+        return NextResponse.json({ leads: [] });
+    }
+
+    // Parse the secured XML payload
     let entries = [...xml.matchAll(/<entry>([\s\S]*?)<\/entry>/g)].map(m => m[1]);
     if (entries.length === 0) {
         entries = [...xml.matchAll(/<item>([\s\S]*?)<\/item>/g)].map(m => m[1]);
-    }
-
-    if (entries.length === 0) {
-         console.error("[CRITICAL] Failed to parse XML tags. Reddit may have returned an HTML Captcha page.");
-         return NextResponse.json({ leads: [] });
     }
 
     const keywordRegex = /\b(AC|HVAC|roof|roofing|plumber|plumbing|electrician|electrical|leak|meter|breaker|repair|install|water|damage|pipe|wire|drywall|paint|contractor|drain)\b/i;
@@ -66,8 +73,6 @@ export async function GET() {
       .map(entry => {
          const title = (entry.match(/<title[^>]*>([\s\S]*?)<\/title>/) || [])[1] || "";
          let content = (entry.match(/<(?:content|description)[^>]*>([\s\S]*?)<\/(?:content|description)>/) || [])[1] || "";
-
-         // Nuke all CDATA and HTML elements so the text is perfectly clean
          content = content.replace(/<!\[CDATA\[/g, '').replace(/\]\]>/g, '').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&').replace(/<[^>]*>?/gm, '').trim();
 
          const authorMatch = (entry.match(/<name>([\s\S]*?)<\/name>/) || entry.match(/<author>([\s\S]*?)<\/author>/) || entry.match(/<dc:creator>([\s\S]*?)<\/dc:creator>/) || [])[1] || "FloridaResident";
@@ -79,7 +84,6 @@ export async function GET() {
       .filter(item => item.title && (keywordRegex.test(item.title) || keywordRegex.test(item.content)))
       .map(item => {
         const contentStr = (item.title + " " + item.content).toLowerCase();
-
         let cat = 'Home Services';
         if (contentStr.includes('ac') || contentStr.includes('hvac')) cat = 'HVAC / AC';
         else if (contentStr.includes('plumb') || contentStr.includes('leak') || contentStr.includes('pipe') || contentStr.includes('drain')) cat = 'Plumbing';
@@ -89,7 +93,7 @@ export async function GET() {
         return {
           id: item.guid,
           source: "Reddit",
-          name: item.author.replace('/u/', ''), // Clean up username formatting
+          name: item.author.replace('/u/', ''),
           time: formatTimeAgo(item.pubDate),
           context: `${item.title}\n\n${item.content}`.substring(0, 400).trim(),
           score: Math.floor(Math.random() * (99 - 91 + 1)) + 91,
@@ -100,11 +104,9 @@ export async function GET() {
         };
       });
 
-    console.log(`[SYS] FILTER COMPLETE. ${mappedLeads.length} High-Intent Leads isolated.`);
     return NextResponse.json({ leads: mappedLeads });
 
   } catch (error) {
-    console.error("[CRITICAL] FATAL ROUTE ERROR:", error);
     return NextResponse.json({ leads: [] });
   }
 }
