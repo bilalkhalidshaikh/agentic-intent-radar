@@ -36,3 +36,30 @@
 .gradient-text {
   @apply bg-clip-text text-transparent bg-gradient-to-r from-brand-orange to-brand-blue;
 }
+
+
+
+/* Firefox standard */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #333333 #050505;
+}
+
+/* Chrome, Edge, Safari - Applied to the root window */
+::-webkit-scrollbar {
+  width: 6px; /* Ultra-thin sleek profile */
+  background-color: #050505;
+}
+
+::-webkit-scrollbar-track {
+  background: #050505;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #333333; 
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #555555;
+}
