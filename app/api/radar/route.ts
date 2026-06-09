@@ -15,7 +15,8 @@ function formatTimeAgo(dateString: string) {
   }
 }
 
-function cleanText(text) {
+// THE FIX: Added ': string' to satisfy strict TypeScript compilation on Vercel.
+function cleanText(text: string) {
   if (!text) return "";
   return text
     .replace(/<!\[CDATA\[/g, '')
@@ -25,8 +26,8 @@ function cleanText(text) {
     .replace(/&gt;/g, '>')
     .replace(/&quot;/g, '"')
     .replace(/&#39;/g, "'")
-    .replace(/&#32;/g, ' ') // This kills the &#32; space code
-    .replace(/<[^>]*>?/gm, '') // Strips leftover HTML tags
+    .replace(/&#32;/g, ' ') 
+    .replace(/<[^>]*>?/gm, '') 
     .trim();
 }
 
